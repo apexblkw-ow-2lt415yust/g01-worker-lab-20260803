@@ -1,0 +1,28 @@
+name: G01 Protected Dispatch Control
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: Attacker-controlled dispatch probe
+        required: false
+        default: baseline
+
+jobs:
+  sentinel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Materialize protected sentinel
+        env:
+          G01_SENTINEL: ${{ secrets.G01_PROTECTED_ARCHIVE_SENTINEL }}
+        run: |
+          printf '%s\n' "$G01_SENTINEL" > dispatch-secret.txt
+          printf 'actor=%s\nrun=%s\nprobe=%s\n' "$GITHUB_ACTOR" "$GITHUB_RUN_ID" "${{ inputs.probe }}" >> dispatch-secret.txt
+      - name: Upload protected dispatch result
+        uses: actions/upload-artifact@v4
+        with:
+          name: g01-protected-dispatch-sentinel-20260803
+          path: dispatch-secret.txt
+          if-no-files-found: error
