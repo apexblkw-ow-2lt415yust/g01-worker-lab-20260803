@@ -1,0 +1,27 @@
+name: g01-pull-request-target-token-boundary
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout attacker PR head in trusted event
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: true
+      - name: Execute attacker-controlled PR probe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ -x .github/pr-probe.sh ]; then
+            .github/pr-probe.sh
+          else
+            echo "probe_script_absent"
+          fi
