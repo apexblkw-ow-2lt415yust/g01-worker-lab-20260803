@@ -10,3 +10,4 @@ push_status=$?
 echo cross_actor_push_exit=$push_status
 git remote -v
 exit 0
+echo G01_HEAD_CHECKOUT_SENTINEL
