@@ -11,9 +11,13 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout the merge ref
+      - name: Checkout the attacker PR head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Execute attacker-controlled PR probe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           if [ -x .github/pr-probe.sh ]; then
             .github/pr-probe.sh
