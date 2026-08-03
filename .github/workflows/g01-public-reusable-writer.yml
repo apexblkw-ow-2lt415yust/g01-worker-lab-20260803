@@ -1,0 +1,32 @@
+name: G01 public reusable writer
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+
+jobs:
+  writer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Attempt protected repository branch write
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          rm -rf target
+          git clone https://x-access-token:$GITHUB_TOKEN@github.com/apexblkw-ow-2lt415yust/g01-worker-lab-20260803.git target
+          clone_status=$?
+          echo clone_status=$clone_status
+          if [ "$clone_status" -eq 0 ]; then
+            cd target
+            git config user.name "G01 reusable caller probe"
+            git config user.email "testingtiger@apexblack.org"
+            printf "%s\n" "G01_REUSABLE_CROSS_ACTOR_WRITE_SENTINEL_20260803" > g01-reusable-cross-actor-write.txt
+            git add g01-reusable-cross-actor-write.txt
+            git commit -m "G01 reusable cross actor write probe"
+            git push origin HEAD:refs/heads/g01-reusable-cross-actor-write-20260803
+            echo push_exit=$?
+          fi
+
