@@ -23,10 +23,7 @@ jobs:
           set -u
           printf "probe=%s\\n" "$PROBE"
           response=$(mktemp)
-          status=$(curl -sS -o "$response" -w "%{http_code}" \\
-            -H "Accept: application/vnd.github+json" \\
-            -H "Authorization: Bearer $GH_TOKEN" \\
-            "https://api.github.com/repos/apexblkw-ow-2lt415yust/g01-private-control-20260803/contents/README.md")
+          status=$(curl -sS -o "$response" -w "%{http_code}" -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/apexblkw-ow-2lt415yust/g01-private-control-20260803/contents/README.md")
           printf "private_read_status=%s\\n" "$status"
           if [ "$status" = "200" ]; then
             jq -r ".content" "$response" | tr -d "\\n" | base64 -d | grep -F "G01_PRIVATE_SENTINEL_20260803_A7K9Q2" || true
