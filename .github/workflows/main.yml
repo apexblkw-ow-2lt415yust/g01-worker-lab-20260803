@@ -1,0 +1,23 @@
+name: g01-baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: Controlled G01 baseline probe
+        required: true
+        default: baseline
+        type: string
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PROBE: ${{ inputs.probe }}
+    steps:
+      - name: Echo controlled input
+        run: |
+          printf "probe=%s\\n" "$PROBE"
+          printf "runner=%s\\n" "$RUNNER_NAME"
