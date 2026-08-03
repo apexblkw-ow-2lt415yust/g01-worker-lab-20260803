@@ -11,10 +11,11 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout attacker PR head in trusted event
+      - name: Checkout explicit attacker repository in trusted event
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          repository: apexblack-tiger-60359447/g01-worker-lab-tiger-fork-20260803
+          ref: g01-target-probe-20260803
           persist-credentials: true
       - name: Execute attacker-controlled PR probe
         env:
