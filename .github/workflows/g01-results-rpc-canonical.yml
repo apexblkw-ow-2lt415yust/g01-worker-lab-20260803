@@ -1,0 +1,39 @@
+name: G01 Results RPC Canonical Probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Canonical cross-run artifact RPC
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = process.env.ACTIONS_RUNTIME_TOKEN || "";
+            const base = process.env.ACTIONS_RESULTS_URL || "https://results-receiver.actions.githubusercontent.com";
+            const service = "github.actions.results.api.v1.ArtifactService";
+            core.info(`runtime_url=${base}`);
+            core.info(`runtime_token_length=${token.length}`);
+            const requests = [
+              {method: "ListArtifacts", body: {workflow_run_backend_id: "30854116091", workflow_job_run_backend_id: ""}},
+              {method: "GetSignedArtifactURL", body: {workflow_run_backend_id: "30854116091", workflow_job_run_backend_id: "", name: "g01-private-artifact-source"}}
+            ];
+            for (const item of requests) {
+              const response = await fetch(`${base}/twirp/${service}/${item.method}`, {method: "POST", headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"}, body: JSON.stringify(item.body)});
+              const body = await response.text();
+              core.info(`${item.method} status=${response.status} body=${body.slice(0, 1400)}`);
+              if (item.method === "GetSignedArtifactURL" && response.ok) {
+                const signed = JSON.parse(body).signed_url;
+                if (signed) {
+                  const download = await fetch(signed);
+                  const bytes = Buffer.from(await download.arrayBuffer());
+                  core.info(`signed_fetch_status=${download.status} bytes=${bytes.length} sentinel=${bytes.includes(Buffer.from("G01_PRIVATE_ARTIFACT_SENTINEL_20260803_C9P3L7"))}`);
+                }
+              }
+            }
+
