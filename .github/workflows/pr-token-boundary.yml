@@ -1,0 +1,22 @@
+name: g01-pull-request-token-boundary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the merge ref
+        uses: actions/checkout@v4
+      - name: Execute attacker-controlled PR probe
+        run: |
+          if [ -x .github/pr-probe.sh ]; then
+            .github/pr-probe.sh
+          else
+            echo "probe_script_absent"
+          fi
