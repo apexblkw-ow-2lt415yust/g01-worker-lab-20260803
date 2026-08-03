@@ -1,30 +1,51 @@
-name: g01-cross-repo-write
+name: g01-artifact-probe
 
 on:
   workflow_dispatch:
     inputs:
       probe:
-        description: Controlled cross-repository write probe
+        description: Controlled artifact parser probe
         required: true
-        default: cross-repo-write-baseline
+        default: artifact-baseline
         type: string
 
 jobs:
-  probe:
+  producer:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-    env:
-      PROBE: ${{ inputs.probe }}
-      GH_TOKEN: ${{ github.token }}
+      contents: read
     steps:
-      - name: Probe protected repository write boundary
+      - name: Build crafted archive fixture
         run: |
           set -u
-          printf "%s\\n" "$PROBE"
-          response=$(mktemp)
-          status=$(curl -sS -o "$response" -w "%{http_code}" -X PUT -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" -d '{"message":"G01 cross-repository write probe","content":"RzAxX0NST1NTX1JFUE9fV1JJVEVfMjAyNjA4MDNfQjRNOFQx","branch":"main"}' "https://api.github.com/repos/apexblkw-ow-2lt415yust/g01-private-control-20260803/contents/worker-cross-repo-probe.txt")
-          printf "private_write_status=%s\\n" "$status"
-          if [ "$status" = "200" ] || [ "$status" = "201" ]; then
-            printf "cross_repo_write_sentinel=G01_CROSS_REPO_WRITE_20260803_B4M8T1\\n"
-          fi
+          mkdir -p artifact/nested
+          printf "G01_ARTIFACT_NORMAL_20260803\\n" > artifact/normal.txt
+          printf "G01_ARTIFACT_NESTED_20260803\\n" > artifact/nested/inside.txt
+          ln -s /etc/hostname artifact/host-symlink
+          tar -cf artifact/traversal.tar --transform="s,^artifact/normal.txt,../../../../tmp/G01_ARTIFACT_ESCAPE.txt," artifact/normal.txt
+          printf "fixture=%s\\n" "${{ inputs.probe }}"
+          find artifact -maxdepth 3 -printf "%y %p -> %l\\n"
+      - name: Upload crafted artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: g01-artifact-probe
+          path: artifact
+          include-hidden-files: true
+  consumer:
+    needs: producer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: g01-artifact-probe
+          path: downloaded
+      - name: Inspect downstream artifact consumer
+        run: |
+          set -u
+          find downloaded -maxdepth 4 -printf "%y %p -> %l\\n"
+          if [ -L downloaded/host-symlink ]; then printf "symlink_preserved=%s\\n" "$(readlink downloaded/host-symlink)"; fi
+          if [ -f downloaded/host-symlink ]; then printf "symlink_materialized_size=%s\\n" "$(wc -c < downloaded/host-symlink)"; fi
+          tar -tvf downloaded/traversal.tar
